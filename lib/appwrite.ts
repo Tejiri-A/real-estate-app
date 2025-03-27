@@ -80,7 +80,7 @@ export async function logout() {
 }
 
 // Function to retrieve the currently logged-in user's details
-export async function getUser() {
+export async function getCurrentUser() {
   try {
     // Fetch the user's account details
     const response = await account.get();
