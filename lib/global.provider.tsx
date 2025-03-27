@@ -1,6 +1,8 @@
 import { createContext, ReactNode, useContext } from "react";
 import { useAppwrite } from "./useAppwrite";
-import { getCurrentUser } from "./appwrite";
+import { avatar, getCurrentUser } from "./appwrite";
+
+
 
 interface User {
     id: string;
@@ -36,16 +38,19 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
 
     // Fallback to using email or ID if the user's name is empty
     const userWithFallback = user
-        ? { ...user, name: user.name || user.email }
+        ? { ...user, name: user.name || user.email, avatar: user.avatar || '' }
         : null;
-
+      
     // Determine if the user is logged in
-    const isLoggedIn = !!userWithFallback;
+    const isLoggedIn = !!user;   
 
+    console.log(JSON.stringify(user, null, 2)); // Log the user data for debugging
+    
+    
     return (
         // Provide the global context to child components
         <GlobalContext.Provider
-            value={{ isLoggedIn, userWithFallback, loading, refetch }}
+            value={{ isLoggedIn, user, loading, refetch } }
         >
             {children}
         </GlobalContext.Provider>
@@ -65,3 +70,4 @@ export const useGlobalContext = (): GlobalContextType => {
 };
 
 export default GlobalProvider;
+
