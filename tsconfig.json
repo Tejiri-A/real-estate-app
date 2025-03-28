@@ -3,6 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "forceConsistentCasingInFileNames": true,
+    "sourceMap": true,
     "paths": {
       "@/*": [
         "./*"
