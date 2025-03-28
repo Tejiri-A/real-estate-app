@@ -1,6 +1,6 @@
 // Import necessary modules and libraries
 import { Platform } from "react-native";
-import { Account, Avatars, Client, OAuthProvider } from "react-native-appwrite";
+import { Account, Avatars, Client, Databases, OAuthProvider } from "react-native-appwrite";
 import * as Linking from "expo-linking";
 import { openAuthSessionAsync } from "expo-web-browser";
 
@@ -9,6 +9,13 @@ export const config = {
   platform: "com.tejiri.restate", // Platform identifier for the app
   endpoint: process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT, // Appwrite server endpoint
   projectId: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID, // Appwrite project ID
+  databaseId: process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID, // Appwrite database ID
+  galleriesCollectionId:
+    process.env.EXPO_PUBLIC_APPWRITE_GALLERIES_COLLECTION_ID, // Appwrite gallery ID
+  reviewsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_REVIEWS_COLLECTION_ID, // Appwrite reviews ID
+  agentsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_AGENTS_COLLECTION_ID, // Appwrite agents ID
+  propertiesCollectionId:
+    process.env.EXPO_PUBLIC_APPWRITE_PROPERTIES_COLLECTION_ID, // Appwrite collection ID
 };
 
 // Initialize the Appwrite client
@@ -22,6 +29,7 @@ client
 // Initialize Appwrite services
 export const avatar = new Avatars(client); // Service for handling avatars
 export const account = new Account(client); // Service for handling user accounts
+export const databases = new Databases(client) // Service for handling databases
 
 // Function to log in the user using Google OAuth
 export async function login() {
