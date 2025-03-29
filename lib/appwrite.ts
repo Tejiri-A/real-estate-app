@@ -1,115 +1,99 @@
-// Import necessary modules and libraries
-import { Platform } from "react-native";
 import {
-  Account,
-  Avatars,
   Client,
+  Account,
+  ID,
   Databases,
   OAuthProvider,
+  Avatars,
   Query,
+  Storage,
 } from "react-native-appwrite";
 import * as Linking from "expo-linking";
 import { openAuthSessionAsync } from "expo-web-browser";
 
-// Configuration for Appwrite client
 export const config = {
-  platform: "com.tejiri.restate", // Platform identifier for the app
-  endpoint: process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT, // Appwrite server endpoint
-  projectId: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID, // Appwrite project ID
-  databaseId: process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID, // Appwrite database ID
+  platform: "com.jsm.restate",
+  endpoint: process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT,
+  projectId: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID,
+  databaseId: process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID,
   galleriesCollectionId:
-    process.env.EXPO_PUBLIC_APPWRITE_GALLERIES_COLLECTION_ID, // Appwrite gallery ID
-  reviewsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_REVIEWS_COLLECTION_ID, // Appwrite reviews ID
-  agentsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_AGENTS_COLLECTION_ID, // Appwrite agents ID
+    process.env.EXPO_PUBLIC_APPWRITE_GALLERIES_COLLECTION_ID,
+  reviewsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_REVIEWS_COLLECTION_ID,
+  agentsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_AGENTS_COLLECTION_ID,
   propertiesCollectionId:
-    process.env.EXPO_PUBLIC_APPWRITE_PROPERTIES_COLLECTION_ID, // Appwrite collection ID
+    process.env.EXPO_PUBLIC_APPWRITE_PROPERTIES_COLLECTION_ID,
+  bucketId: process.env.EXPO_PUBLIC_APPWRITE_BUCKET_ID,
 };
 
-// Initialize the Appwrite client
 export const client = new Client();
-
 client
-  .setEndpoint(config.endpoint!) // Set the Appwrite server endpoint
-  .setProject(config.projectId!) // Set the Appwrite project ID
-  .setPlatform(config.platform!); // Set the platform identifier
+  .setEndpoint(config.endpoint!)
+  .setProject(config.projectId!)
+  .setPlatform(config.platform!);
 
-// Initialize Appwrite services
-export const avatar = new Avatars(client); // Service for handling avatars
-export const account = new Account(client); // Service for handling user accounts
-export const databases = new Databases(client); // Service for handling databases
+export const avatar = new Avatars(client);
+export const account = new Account(client);
+export const databases = new Databases(client);
+export const storage = new Storage(client);
 
-// Function to log in the user using Google OAuth
 export async function login() {
   try {
-    // Create a redirect URI for deep linking
     const redirectUri = Linking.createURL("/");
 
-    // Initiate the OAuth login process
-    const response = account.createOAuth2Token(
-      OAuthProvider.Google, // Specify Google as the OAuth provider
-      redirectUri // Redirect URI for handling the callback
+    const response = await account.createOAuth2Token(
+      OAuthProvider.Google,
+      redirectUri
     );
-    if (!response) throw new Error("Failed to login");
+    if (!response) throw new Error("Create OAuth2 token failed");
 
-    // Open the OAuth login page in the browser
     const browserResult = await openAuthSessionAsync(
       response.toString(),
       redirectUri
     );
+    if (browserResult.type !== "success")
+      throw new Error("Create OAuth2 token failed");
 
-    // Check if the login was successful
-    if (browserResult.type !== "success") throw new Error("Failed to Login");
-
-    // Parse the redirect URL to extract query parameters
     const url = new URL(browserResult.url);
+    const secret = url.searchParams.get("secret")?.toString();
+    const userId = url.searchParams.get("userId")?.toString();
+    if (!secret || !userId) throw new Error("Create OAuth2 token failed");
 
-    const secret = url.searchParams.get("secret")?.toString(); // Extract the secret
-    const userId = url.searchParams.get("userId")?.toString(); // Extract the user ID
-
-    // Ensure both secret and userId are present
-    if (!secret || !userId) throw new Error("Failed to Login");
-
-    // Create a session using the extracted secret and userId
     const session = await account.createSession(userId, secret);
+    if (!session) throw new Error("Failed to create session");
 
-    // Ensure the session was created successfully
-    if (!session) throw new Error("Failed to create a session");
-
-    return true; // Return true if login was successful
+    return true;
   } catch (error) {
-    console.log(error); // Log any errors
-    return false; // Return false if login failed
+    console.error(error);
+    return false;
   }
 }
 
-// Function to log out the currently logged-in user
 export async function logout() {
   try {
-    // Delete the current session
-    await account.deleteSession("current");
-    return true; // Return true if logout was successful
+    const result = await account.deleteSession("current");
+    return result;
   } catch (error) {
-    console.log(error); // Log any errors
-    return false; // Return false if logout failed
+    console.error(error);
+    return false;
   }
 }
 
-// Function to retrieve the currently logged-in user's details
 export async function getCurrentUser() {
   try {
-    // Fetch the user's account details
-    const response = await account.get();
+    const result = await account.get();
+    if (result.$id) {
+      const userAvatar = avatar.getInitials(result.name);
 
-    // If the user is logged in, generate an avatar and return user details
-    if (response.$id) {
-      const userAvatar = avatar.getInitials(response.name); // Generate avatar based on user's name
-      return { ...response, avatar: userAvatar.toString() }; // Return user details with avatar
+      return {
+        ...result,
+        avatar: userAvatar.toString(),
+      };
     }
 
-    return response; // Return the raw response if no user is logged in
+    return null;
   } catch (error) {
-    console.log(error); // Log any errors
-    return null; // Return null if fetching user details failed
+    console.log(error);
+    return null;
   }
 }
 
@@ -120,6 +104,7 @@ export async function getLatestProperties() {
       config.propertiesCollectionId!,
       [Query.orderAsc("$createdAt"), Query.limit(5)]
     );
+
     return result.documents;
   } catch (error) {
     console.error(error);
@@ -141,7 +126,8 @@ export async function getProperties({
 
     if (filter && filter !== "All")
       buildQuery.push(Query.equal("type", filter));
-    if (query) {
+
+    if (query)
       buildQuery.push(
         Query.or([
           Query.search("name", query),
@@ -149,18 +135,33 @@ export async function getProperties({
           Query.search("type", query),
         ])
       );
-    }
-    if(limit) buildQuery.push(Query.limit(limit))
-    
+
+    if (limit) buildQuery.push(Query.limit(limit));
+
     const result = await databases.listDocuments(
       config.databaseId!,
       config.propertiesCollectionId!,
-      buildQuery,
-    )
+      buildQuery
+    );
 
-    return result.documents
+    return result.documents;
   } catch (error) {
     console.error(error);
     return [];
+  }
+}
+
+// write function to get property by id
+export async function getPropertyById({ id }: { id: string }) {
+  try {
+    const result = await databases.getDocument(
+      config.databaseId!,
+      config.propertiesCollectionId!,
+      id
+    );
+    return result;
+  } catch (error) {
+    console.error(error);
+    return null;
   }
 }
